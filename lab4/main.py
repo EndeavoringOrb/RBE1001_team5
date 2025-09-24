@@ -27,7 +27,7 @@ range_finder_e = Sonar(brain.three_wire_port.d)
 BASE_SPEED = 85
 CAM_WIDTH = 320
 CAM_HEIGHT = 240
-AREA_THRESHOLD = 0.7
+AREA_THRESHOLD = 0.4
 ARM_AREA_THRESHOLD = 0.4
 KNOCK_TIME = 1.3
 knock_timer = Timer()
@@ -84,27 +84,6 @@ We'll use a timer to read the camera every cameraInterval milliseconds
 cameraInterval = 50
 cameraTimer = Timer()
 
-
-def handleButton():
-    global current_state
-
-    if current_state == ROBOT_IDLE:
-        print("IDLE -> SEARCHING")
-        current_state = ROBOT_SEARCHING
-        # Start forward movement with IMU control
-        imuTimer.event(handleForward, 100)
-        # Start the timer for the camera
-        cameraTimer.event(cameraTimerCallback, cameraInterval)
-
-    else:  # failsafe; go to IDLE from any other state when button is pressed
-        print(" -> IDLE")
-        current_state = ROBOT_IDLE
-        left_motor.stop()
-        right_motor.stop()
-        imuTimer.clear()  # Clear IMU timer
-
-handleButton()
-# controller.buttonL1.pressed(handleButton)
 
 """
 Wall detection function from Lab 2
@@ -216,7 +195,7 @@ def handleObjectDetection():
         right_motor.spin(FORWARD, BASE_SPEED - turn_effort)
 
         # vertical
-        target_x = 0.25 * CAM_WIDTH
+        target_x = (0.5 - (0.4 * area_pct)) * CAM_WIDTH
         K_x = 1.0
 
         error = cx - target_x
@@ -271,6 +250,26 @@ def handle90DegreeTurn():
         imuTimer.event(handleForward, 100)
         print("Turn complete, resuming search")
 
+def handleButton():
+    global current_state
+
+    if current_state == ROBOT_IDLE:
+        print("IDLE -> SEARCHING")
+        current_state = ROBOT_SEARCHING
+        # Start forward movement with IMU control
+        imuTimer.event(handleForward, 100)
+        # Start the timer for the camera
+        cameraTimer.event(cameraTimerCallback, cameraInterval)
+
+    else:  # failsafe; go to IDLE from any other state when button is pressed
+        print(" -> IDLE")
+        current_state = ROBOT_IDLE
+        left_motor.stop()
+        right_motor.stop()
+        imuTimer.clear()  # Clear IMU timer
+
+handleButton()
+# controller.buttonL1.pressed(handleButton)
 
 # Main loop
 while True:
