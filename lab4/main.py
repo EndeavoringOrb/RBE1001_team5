@@ -103,8 +103,8 @@ def handleButton():
         right_motor.stop()
         imuTimer.clear()  # Clear IMU timer
 
-
-controller.buttonL1.pressed(handleButton)
+handleButton()
+# controller.buttonL1.pressed(handleButton)
 
 """
 Wall detection function from Lab 2
