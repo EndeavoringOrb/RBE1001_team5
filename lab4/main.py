@@ -1,7 +1,5 @@
 # region VEXcode Generated Robot Configuration
 from vex import *
-import urandom  # type: ignore
-import math
 
 # Brain should be defined by default
 brain = Brain()
@@ -9,11 +7,14 @@ brain = Brain()
 # Robot configuration code
 left_motor = Motor(Ports.PORT1, GearSetting.RATIO_18_1, not False)
 right_motor = Motor(Ports.PORT10, GearSetting.RATIO_18_1, not True)
-arm_motor = Motor(Ports.PORT5, GearSetting.RATIO_18_1, not True)
+arm_motor = Motor(Ports.PORT6, GearSetting.RATIO_18_1, not True)
 # AI Vision Color Descriptions
-ai_vision_11__COLOR1 = Colordesc(1, 100, 255, 162, 8, 0.41)  # green
-ai_vision_11__COLOR2 = Colordesc(2, 181, 126, 220, 10, 0.43)  # purple
-ai_vision_11__COLOR3 = Colordesc(3, 227, 62, 59, 12, 0.14)  # orange
+# ai_vision_11__COLOR1 = Colordesc(1, 100, 255, 162, 8, 0.41)  # green
+# ai_vision_11__COLOR2 = Colordesc(2, 181, 126, 220, 10, 0.43)  # purple
+# ai_vision_11__COLOR3 = Colordesc(3, 227, 62, 59, 12, 0.14)  # orange
+ai_vision_11__COLOR1 = Colordesc(1, 96, 102, 200, 10, 0.2)  # purple
+ai_vision_11__COLOR2 = Colordesc(2, 20, 213, 105, 10, 0.2)  # green
+ai_vision_11__COLOR3 = Colordesc(3, 206, 115, 102, 10, 0.2)  # orange
 # AI Vision Code Descriptions
 ai_vision_15 = AiVision(Ports.PORT11, ai_vision_11__COLOR2)
 bumper_g = Bumper(brain.three_wire_port.g)
@@ -26,6 +27,12 @@ range_finder_e = Sonar(brain.three_wire_port.d)
 BASE_SPEED = 85
 CAM_WIDTH = 320
 CAM_HEIGHT = 240
+AREA_THRESHOLD = 0.7
+ARM_AREA_THRESHOLD = 0.4
+KNOCK_TIME = 1.3
+knock_timer = Timer()
+knock_turn_time = knock_timer.time() - 10
+arm_knock_turn_time = knock_timer.time() - 10
 
 # Constants from Lab 2
 forwardkd = 10
@@ -164,6 +171,8 @@ def cameraTimerCallback():
     if objects:
         handleObjectDetection()
     else:
+        arm_motor.stop()
+        print("no objects detected", end="\r")
         missedDetections = missedDetections + 1
 
     # restart the timer
@@ -172,8 +181,7 @@ def cameraTimerCallback():
 
 
 def handleObjectDetection():
-    global current_state
-    global missedDetections
+    global current_state, missedDetections, knock_turn_time, arm_knock_turn_time
 
     obj = ai_vision_15.largest_object()
     area_pct = (obj.height * obj.width) / (CAM_HEIGHT * CAM_WIDTH)
@@ -196,7 +204,10 @@ def handleObjectDetection():
         K_y = 0.5
 
         error = cy - target_y
-        if area_pct > 0.7:
+        if area_pct > AREA_THRESHOLD:
+            knock_turn_time = knock_timer.time()
+        knock_check = knock_timer.time() - knock_turn_time < KNOCK_TIME
+        if knock_check:
             error += 600
         turn_effort = K_y * error
         brain.screen.print_at("turn_effort:", turn_effort, x=100, y=180)
@@ -205,12 +216,20 @@ def handleObjectDetection():
         right_motor.spin(FORWARD, BASE_SPEED - turn_effort)
 
         # vertical
-        target_x = CAM_WIDTH / 2
-        K_x = 0.5
+        target_x = 0.25 * CAM_WIDTH
+        K_x = 1.0
 
         error = cx - target_x
+        if area_pct > ARM_AREA_THRESHOLD:
+            arm_knock_turn_time = knock_timer.time()
+        arm_knock_check = knock_timer.time() - arm_knock_turn_time < KNOCK_TIME
+        if arm_knock_check or knock_check:
+            error = 0
         turn_effort = K_x * error
         arm_motor.spin(FORWARD, turn_effort)
+
+        if knock_check:
+            sleep(int(KNOCK_TIME * 1000), TimeUnits.MSEC)
 
     # reset the time out timer
     missedDetections = 0
@@ -261,16 +280,16 @@ while True:
         "Sonar: {} mm".format(range_finder_e.distance(MM)), x=10, y=40
     )
 
-    # Check for wall detection only during searching state
-    if current_state == ROBOT_SEARCHING:
-        if checkUltrasonic():
-            current_time = brain.timer.time(MSEC)
-            # Only turn if enough time has passed since last turn
-            if current_time - last_turn_time >= TURN_COOLDOWN:
-                handle90DegreeTurn()
+#     # Check for wall detection only during searching state
+#     if current_state == ROBOT_SEARCHING:
+#         if checkUltrasonic():
+#             current_time = brain.timer.time(MSEC)
+#             # Only turn if enough time has passed since last turn
+#             if current_time - last_turn_time >= TURN_COOLDOWN:
+#                 handle90DegreeTurn()
 
-    # Check if object is lost during approaching
-    if checkForLostObject():
-        handleLostObject()
+#     # Check if object is lost during approaching
+#     if checkForLostObject():
+#         handleLostObject()
 
-    wait(20, MSEC)  # Small delay to prevent CPU overload
+#     wait(20, MSEC)  # Small delay to prevent CPU overload
