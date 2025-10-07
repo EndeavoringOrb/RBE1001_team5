@@ -5,8 +5,8 @@ from vex import *
 brain = Brain()
 
 # Robot configuration code - Port Bindings
-left_motor = Motor(Ports.PORT2, GearSetting.RATIO_18_1, not False)
-right_motor = Motor(Ports.PORT9, GearSetting.RATIO_18_1, not True)
+left_motor = Motor(Ports.PORT1, GearSetting.RATIO_18_1, not False)
+right_motor = Motor(Ports.PORT10, GearSetting.RATIO_18_1, not True)
 arm_motor = Motor(Ports.PORT7, GearSetting.RATIO_18_1, True)
 clamp_motor = Motor(Ports.PORT19, GearSetting.RATIO_18_1, True)
 ultrasonic_sensor = Sonar(brain.three_wire_port.f)
@@ -55,9 +55,8 @@ ROBOT_SEARCHING = 1
 ROBOT_APPROACHING = 2
 ROBOT_TURN = 3
 ROBOT_PICKUP_BOX = 4
-ROBOT_DRIVING = 5  # <-- NEW STATE for manual control
+ROBOT_DRIVING = 5
 
-# Initialize to IDLE state
 current_state = ROBOT_IDLE
 
 # Variables for wall detection
@@ -234,8 +233,8 @@ def handleObjectDetection(obj, color):
 def handleBoxPickup():
     global current_state
     print("Starting box pickup routine...")
-    left_motor.spin(REVERSE, 100, RPM)
-    right_motor.spin(REVERSE, 100, RPM)
+    left_motor.spin(REVERSE, 150, RPM)
+    right_motor.spin(REVERSE, 150, RPM)
     wait(1000, MSEC)
     while ultrasonic_sensor.distance(MM) > 40:
         print(ultrasonic_sensor.distance(MM))
@@ -243,7 +242,8 @@ def handleBoxPickup():
     left_motor.stop()
     right_motor.stop()
     print("Box detected! Clamping...")
-    clamp_motor.spin_for(FORWARD, -1800, DEGREES, 100, RPM, wait=True)
+    clamp_motor.spin(REVERSE, 100, RPM)
+    wait(2000, MSEC)
     clamp_motor.stop(HOLD)
     print("Turning 180 degrees...")
     left_motor.spin(FORWARD, 150, RPM)
@@ -280,7 +280,7 @@ def handle90DegreeTurn():
 def handleDriving():
     """NEW: Control the robot using Split Arcade Drive on the controller."""
     # Right joystick Y-axis for forward/backward, Left joystick X-axis for turning
-    forward_speed = controller.axis2.position()
+    forward_speed = controller.axis3.position()
     turn_speed = controller.axis4.position()
 
     # Calculate motor speeds
