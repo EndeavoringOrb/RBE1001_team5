@@ -34,7 +34,7 @@ CAM_WIDTH = 320
 CAM_HEIGHT = 240
 AREA_THRESHOLD = 0.4
 ARM_AREA_THRESHOLD = 0.4
-KNOCK_TIME = 0.8
+KNOCK_TIME = 1.5
 knock_timer = Timer()
 knock_turn_time = knock_timer.time() - 10
 arm_knock_turn_time = knock_timer.time() - 10
@@ -215,7 +215,8 @@ def handleObjectDetection(obj, color):
 
         left_motor.spin(FORWARD, BASE_SPEED + turn_effort)
         right_motor.spin(FORWARD, BASE_SPEED - turn_effort)
-        target_x = (0.65 - (0.0 * area_pct)) * CAM_WIDTH
+
+        target_x = (0.5 - (0.2 * area_pct)) * CAM_WIDTH
         K_x = 0.5
         error = cx - target_x
         if area_pct > ARM_AREA_THRESHOLD:
