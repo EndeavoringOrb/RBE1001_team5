@@ -32,12 +32,12 @@ range_finder_e = Sonar(brain.three_wire_port.d)
 BASE_SPEED = 85
 CAM_WIDTH = 320
 CAM_HEIGHT = 240
-AREA_THRESHOLD = 0.4
-ARM_AREA_THRESHOLD = 0.4
-KNOCK_TIME = 1.5
+HEIGHT_THRESHOLD = 0.7
+ARM_HEIGHT_THRESHOLD = 0.65
+KNOCK_TIME = 2.5
 height_scalar=0.5
-height_scalar_min=0.4
-area_scalar=0.2
+height_scalar_min=0.3
+area_scalar=0.25
 knock_timer = Timer()
 knock_turn_time = knock_timer.time() - 10
 arm_knock_turn_time = knock_timer.time() - 10
@@ -188,13 +188,14 @@ def cameraTimerCallback():
 
 def handleObjectDetection(obj, color):
     global current_state, missedDetections, knock_turn_time, arm_knock_turn_time, target_color
-    area_pct = (obj.height * obj.width) / (CAM_HEIGHT * CAM_WIDTH)
+    obj_pct_height = obj.width / CAM_WIDTH
+    # area_pct = (obj.height * obj.width) / (CAM_HEIGHT * CAM_WIDTH)
     cy = obj.centerY
     cx = obj.centerX
     brain.screen.print_at(
         "color: {}".format(color_names.get(color.id, "?")), x=100, y=80
     )
-    brain.screen.print_at("area: {:.2f}".format(area_pct), x=100, y=100)
+    # brain.screen.print_at("area: {:.2f}".format(area_pct), x=100, y=100)
     brain.screen.print_at("height: {}".format(obj.height), x=100, y=120)
     brain.screen.print_at("width: {}".format(obj.width), x=100, y=140)
     brain.screen.print_at("cy: {}".format(cy), x=100, y=160)
@@ -208,20 +209,24 @@ def handleObjectDetection(obj, color):
         target_y = CAM_HEIGHT / 2
         K_y = 0.5
         error = cy - target_y
-        if area_pct > AREA_THRESHOLD:
+        if obj_pct_height > HEIGHT_THRESHOLD:
             knock_turn_time = knock_timer.time()
         knock_check = knock_timer.time() - knock_turn_time < KNOCK_TIME
         if knock_check:
             error += 600
-        turn_effort = K_y * error
-        brain.screen.print_at("turn: {:.1f}".format(turn_effort), x=100, y=180)
+            turn_effort = K_y * error
+            left_motor.spin(FORWARD, turn_effort)
+            right_motor.spin(FORWARD, -turn_effort)
+        else:
+            turn_effort = K_y * error
+            brain.screen.print_at("turn: {:.1f}".format(turn_effort), x=100, y=180)
 
-        left_motor.spin(FORWARD, BASE_SPEED + turn_effort)
-        right_motor.spin(FORWARD, BASE_SPEED - turn_effort)
-        target_x = max(height_scalar_min, (height_scalar - (area_scalar * area_pct))) * CAM_WIDTH
+            left_motor.spin(FORWARD, BASE_SPEED + turn_effort)
+            right_motor.spin(FORWARD, BASE_SPEED - turn_effort)
+        target_x = max(height_scalar_min, (height_scalar - (area_scalar * obj_pct_height))) * CAM_WIDTH
         K_x = 0.5
         error = cx - target_x
-        if area_pct > ARM_AREA_THRESHOLD:
+        if obj_pct_height > ARM_HEIGHT_THRESHOLD:
             arm_knock_turn_time = knock_timer.time()
         arm_knock_check = knock_timer.time() - arm_knock_turn_time < KNOCK_TIME
         if arm_knock_check or knock_check:
@@ -283,8 +288,8 @@ def handle90DegreeTurn():
 def handleDriving():
     """NEW: Control the robot using Split Arcade Drive on the controller."""
     # Right joystick Y-axis for forward/backward, Left joystick X-axis for turning
+    turn_speed = controller.axis1.position()
     forward_speed = controller.axis3.position()
-    turn_speed = controller.axis4.position()
 
     # Calculate motor speeds
     left_speed = forward_speed + turn_speed
@@ -296,9 +301,9 @@ def handleDriving():
 
     # Manual arm control with shoulder buttons
     if controller.buttonX.pressing():
-        arm_motor.spin(FORWARD, 75, PERCENT)
+        arm_motor.spin(FORWARD, 25, PERCENT)
     elif controller.buttonB.pressing():
-        arm_motor.spin(REVERSE, 75, PERCENT)
+        arm_motor.spin(REVERSE, 25, PERCENT)
     else:
         arm_motor.stop(BRAKE)
 
